@@ -16,25 +16,34 @@ def get_temp():
 def server():
 	import socket
 	addr = socket.getaddrinfo('0.0.0.0', 80)[0][-1]
-
-	print("Making Socket")
+                
+        print("Making Socket")
 
 	s = socket.socket()
-	print("Binding")
+	
+        print("Binding")
 	s.bind(addr)
 	print("Listening")
 	s.listen(1)
 
-        lastime = time.time()
+
+
+        lasttime = time.time()
         data = {"temp": [(time.time(), get_temp())]*10, "state": [(time.time(), relay_state())]*10}
 
 	print('listening on', addr)
 
+        s.settimeout(0.2)
+
 	while True:
-	    cl, addr = s.accept()
+            try:
+                cl, addr = s.accept()
+            except Exception as e:
+                continue
+
 	    print('client connected from', addr)
 	   
-            if (time.time() > lastime):
+            if (time.time() > lasttime):
                 lasttime = time.time()
                 data["temp"].append((lasttime, get_temp()))
                 data["temp"] = data["temp"][1:]
