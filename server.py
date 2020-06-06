@@ -1,23 +1,19 @@
 
-import machine, onewire, ds18x20, time, ucollections
+import machine, onewire, ds18x20, time, ucollections, json
 def relay_on():
     relay_pin.off()
 
 def relay_off():
     relay_pin.on()	
 
+def relay_state():
+    return not relay_pin.value()
+
 def get_temp():
     ds_sensor.convert_temp()
     return ds_sensor.read_temp(rom_sensor)
 
 def server():
-	html = """<!DOCTYPE html>
-	<html>
-	    <head> <title>ESP8266 Pins</title> </head>
-	    <body> <h1>{}</h1> </body>
-	</html>
-	"""
-
 	import socket
 	addr = socket.getaddrinfo('0.0.0.0', 80)[0][-1]
 
@@ -29,12 +25,23 @@ def server():
 	print("Listening")
 	s.listen(1)
 
+        lastime = time.time()
+        data = {"temp": [(time.time(), get_temp())]*10, "state": [(time.time(), relay_state())]*10}
+
 	print('listening on', addr)
 
 	while True:
 	    cl, addr = s.accept()
 	    print('client connected from', addr)
 	   
+            if (time.time() > lastime):
+                lasttime = time.time()
+                data["temp"].append((lasttime, get_temp()))
+                data["temp"] = data["temp"][1:]
+                data["state"].append((lasttime, relay_state()))
+                data["state"] = data["state"][1:]
+
+
             cl_file = cl.makefile('rwb', 0)
 	    while True:
 		line = cl_file.readline()
@@ -48,9 +55,7 @@ def server():
                 if not line or line == b'\r\n':
 		    break
 	    
-            response = html.format(get_temp())
-	   
-             
+            response = json.dumps(data)
                         
             cl.send('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
 	    cl.send(response)
